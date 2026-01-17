@@ -1,0 +1,76 @@
+﻿using Microsoft.EntityFrameworkCore;
+using AeroElo.Api.Data;
+using AeroElo.Api.Services;
+using Microsoft.OpenApi.Models;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("ReactDevServer", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
+// Configure SQLite Database
+builder.Services.AddDbContext<AeroEloDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection") 
+        ?? "Data Source=aeroelo.db"));
+
+// Register services
+builder.Services.AddScoped<IEloService, EloService>();
+
+builder.Services.AddControllers();
+
+// Configure Swagger/OpenAPI
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "AeroElo API",
+        Version = "v1",
+        Description = "Elo rating system API for tracking player rankings with position-specific statistics (Offense/Defense) and team color tracking (Red/Blue).",
+        Contact = new OpenApiContact
+        {
+            Name = "AeroElo",
+            Url = new Uri("https://github.com/FinkThePanda/AeroElo")
+        }
+    });
+
+    // Enable XML comments if you want to include method documentation
+    // var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    // var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    // options.IncludeXmlComments(xmlPath);
+});
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "AeroElo API v1");
+        options.RoutePrefix = string.Empty; // Set Swagger UI at the app's root (http://localhost:5000/)
+        options.DocumentTitle = "AeroElo API Documentation";
+        options.DefaultModelsExpandDepth(2);
+        options.DefaultModelExpandDepth(2);
+    });
+}
+
+app.UseHttpsRedirection();
+
+app.UseCors("ReactDevServer");
+
+app.UseAuthorization();
+
+app.MapControllers();
+
+app.Run();

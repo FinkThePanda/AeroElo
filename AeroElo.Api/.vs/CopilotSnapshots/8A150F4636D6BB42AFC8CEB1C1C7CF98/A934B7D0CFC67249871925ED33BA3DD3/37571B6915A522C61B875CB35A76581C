@@ -1,0 +1,10 @@
+﻿namespace AeroElo.Api.Models
+{
+    public class Player
+    {
+        public Guid Id { get; set; } // Primary Key
+        public string Username { get; set; }
+        public int EloRating { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+}

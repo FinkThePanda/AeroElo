@@ -1,0 +1,50 @@
+﻿using Microsoft.AspNetCore.Mvc;
+
+namespace AeroElo.Api.Controllers
+{
+    [ApiController]
+    [Route("[controller]")]
+    public class PlayerController : ControllerBase
+    {
+        // GET List all players (sorted by ELO)
+        [HttpGet(Name = "GetPlayersByElo")]
+        public IActionResult GetPlayersByElo()
+        {
+            // Implementation goes here
+            return Ok();
+        }
+
+        // GET Get player with match history
+        [HttpGet(Name = "GetPlayerMatchHistoryByPlayerId")]
+        public IActionResult GetPlayerMatchHistoryByPlayerId()
+        {
+            // Implementation goes here
+            return Ok();
+        }
+
+        // GET Top players with rank
+        [HttpGet(Name = "GetPlayerLeaderboard")]
+        public IActionResult GetPlayerLeaderboard()
+        {
+            // Implementation goes here
+            return Ok();
+        }
+
+        // POST Create new player
+        [HttpPost(Name = "CreatePlayer")]
+        public IActionResult CreatePlayer()
+        {
+            // Implementation goes here
+            return Ok();
+        }
+
+        // DELETE Remove player
+        [HttpDelete(Name = "DeletePlayer")]
+        public IActionResult DeletePlayer()
+        {
+            // Implementation goes here
+            return Ok();
+        }
+
+     }
+}

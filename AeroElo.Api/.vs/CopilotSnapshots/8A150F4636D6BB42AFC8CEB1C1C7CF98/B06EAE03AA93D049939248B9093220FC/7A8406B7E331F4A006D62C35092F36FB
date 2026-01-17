@@ -1,0 +1,6 @@
+﻿namespace AeroElo.Api.Services
+{
+    public class EloService
+    {
+    }
+}

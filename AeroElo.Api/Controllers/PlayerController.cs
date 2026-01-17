@@ -1,0 +1,249 @@
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using AeroElo.Api.Data;
+using AeroElo.Api.DTOs;
+using AeroElo.Api.Models;
+
+namespace AeroElo.Api.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    public class PlayerController : ControllerBase
+    {
+        private readonly AeroEloDbContext _context;
+
+        public PlayerController(AeroEloDbContext context)
+        {
+            _context = context;
+        }
+
+        /// <summary>
+        /// Get all players sorted by ELO rating (descending)
+        /// </summary>
+        [HttpGet]
+        [ProducesResponseType(typeof(IEnumerable<PlayerResponseDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetPlayersByElo()
+        {
+            var players = await _context.Players
+                .OrderByDescending(p => p.EloRating)
+                .ToListAsync();
+
+            var response = players.Select((player, index) => MapToPlayerResponseDto(player, index + 1));
+
+            return Ok(response);
+        }
+
+        /// <summary>
+        /// Get player by ID with match history
+        /// </summary>
+        [HttpGet("{id}")]
+        [ProducesResponseType(typeof(PlayerWithMatchHistoryDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetPlayerMatchHistoryByPlayerId(Guid id)
+        {
+            var player = await _context.Players.FindAsync(id);
+            if (player == null)
+                return NotFound(new { message = $"Player with ID {id} not found" });
+
+            // Get player rank
+            var rank = await _context.Players
+                .CountAsync(p => p.EloRating > player.EloRating) + 1;
+
+            // Get match history
+            var matchHistory = await _context.MatchParticipants
+                .Where(mp => mp.PlayerId == id)
+                .Include(mp => mp.MatchId)
+                .OrderByDescending(mp => _context.Matches
+                    .Where(m => m.Id == mp.MatchId)
+                    .Select(m => m.PlayedAt)
+                    .FirstOrDefault())
+                .Take(50)
+                .Select(mp => new
+                {
+                    MatchId = mp.MatchId,
+                    Match = _context.Matches.FirstOrDefault(m => m.Id == mp.MatchId)
+                })
+                .ToListAsync();
+
+            var matches = new List<MatchResponseDto>();
+            foreach (var mh in matchHistory)
+            {
+                if (mh.Match != null)
+                {
+                    var matchDto = await MapToMatchResponseDto(mh.Match);
+                    matches.Add(matchDto);
+                }
+            }
+
+            var response = new PlayerWithMatchHistoryDto
+            {
+                Player = MapToPlayerResponseDto(player, rank),
+                RecentMatches = matches
+            };
+
+            return Ok(response);
+        }
+
+        /// <summary>
+        /// Get top players leaderboard (top 100)
+        /// </summary>
+        [HttpGet("leaderboard")]
+        [ProducesResponseType(typeof(IEnumerable<PlayerResponseDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetPlayerLeaderboard([FromQuery] int limit = 100)
+        {
+            var players = await _context.Players
+                .OrderByDescending(p => p.EloRating)
+                .Take(limit)
+                .ToListAsync();
+
+            var response = players.Select((player, index) => MapToPlayerResponseDto(player, index + 1));
+
+            return Ok(response);
+        }
+
+        /// <summary>
+        /// Create a new player
+        /// </summary>
+        [HttpPost]
+        [ProducesResponseType(typeof(PlayerResponseDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> CreatePlayer([FromBody] CreatePlayerDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            // Check if username already exists
+            if (await _context.Players.AnyAsync(p => p.Username == dto.Username))
+                return BadRequest(new { message = "Username already exists" });
+
+            var player = new Player
+            {
+                Id = Guid.NewGuid(),
+                Username = dto.Username,
+                EloRating = 1000,
+                OffenseElo = 1000,
+                DefenseElo = 1000,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Players.Add(player);
+            await _context.SaveChangesAsync();
+
+            var response = MapToPlayerResponseDto(player, 0);
+
+            return CreatedAtAction(
+                nameof(GetPlayerMatchHistoryByPlayerId),
+                new { id = player.Id },
+                response
+            );
+        }
+
+        /// <summary>
+        /// Delete a player
+        /// </summary>
+        [HttpDelete("{id}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> DeletePlayer(Guid id)
+        {
+            var player = await _context.Players.FindAsync(id);
+            if (player == null)
+                return NotFound(new { message = $"Player with ID {id} not found" });
+
+            _context.Players.Remove(player);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+        #region Helper Methods
+
+        private PlayerResponseDto MapToPlayerResponseDto(Player player, int rank)
+        {
+            // Calculate total match count
+            var matchCount = player.OffenseWins + player.OffenseLosses +
+                           player.DefenseWins + player.DefenseLosses;
+
+            return new PlayerResponseDto
+            {
+                Id = player.Id,
+                Username = player.Username,
+                EloRating = player.EloRating,
+                Rank = rank,
+                MatchCount = matchCount,
+                OffenseElo = player.OffenseElo,
+                DefenseElo = player.DefenseElo,
+                OffenseStats = new PositionStatsDto
+                {
+                    Wins = player.OffenseWins,
+                    Losses = player.OffenseLosses
+                },
+                DefenseStats = new PositionStatsDto
+                {
+                    Wins = player.DefenseWins,
+                    Losses = player.DefenseLosses
+                },
+                RedTeamStats = new TeamColorStatsDto
+                {
+                    Wins = player.RedTeamWins,
+                    Losses = player.RedTeamLosses
+                },
+                BlueTeamStats = new TeamColorStatsDto
+                {
+                    Wins = player.BlueTeamWins,
+                    Losses = player.BlueTeamLosses
+                },
+                CreatedAt = player.CreatedAt
+            };
+        }
+
+        private async Task<MatchResponseDto> MapToMatchResponseDto(Match match)
+        {
+            var participants = await _context.MatchParticipants
+                .Where(mp => mp.MatchId == match.Id)
+                .ToListAsync();
+
+            var participantDtos = new List<MatchParticipantResponseDto>();
+
+            foreach (var participant in participants)
+            {
+                var player = await _context.Players.FindAsync(participant.PlayerId);
+                if (player != null)
+                {
+                    participantDtos.Add(new MatchParticipantResponseDto
+                    {
+                        PlayerId = participant.PlayerId,
+                        PlayerUsername = player.Username,
+                        Side = participant.Side,
+                        TeamColor = participant.TeamColor,
+                        Position = participant.Position,
+                        EloChange = participant.EloChange,
+                        OffenseEloChange = participant.OffenseEloChange,
+                        DefenseEloChange = participant.DefenseEloChange,
+                        CurrentElo = player.EloRating,
+                        CurrentOffenseElo = player.OffenseElo,
+                        CurrentDefenseElo = player.DefenseElo
+                    });
+                }
+            }
+
+            return new MatchResponseDto
+            {
+                Id = match.Id,
+                MatchType = match.MatchType,
+                ScoreA = match.ScoreA,
+                ScoreB = match.ScoreB,
+                PlayedAt = match.PlayedAt,
+                Participants = participantDtos
+            };
+        }
+
+        #endregion
+    }
+
+    public class PlayerWithMatchHistoryDto
+    {
+        public PlayerResponseDto Player { get; set; } = new();
+        public List<MatchResponseDto> RecentMatches { get; set; } = new();
+    }
+}

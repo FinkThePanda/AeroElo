@@ -1,0 +1,27 @@
+﻿namespace AeroElo.Api.Models
+{
+    public class Player
+    {
+        public Guid Id { get; set; } // Primary Key
+        public string Username { get; set; }
+        public int EloRating { get; set; } // Overall ELO
+        public int OffenseElo { get; set; } = 1000; // Position-specific ELO
+        public int DefenseElo { get; set; } = 1000; // Position-specific ELO
+        
+        // Win/Loss tracking for offense
+        public int OffenseWins { get; set; }
+        public int OffenseLosses { get; set; }
+        
+        // Win/Loss tracking for defense
+        public int DefenseWins { get; set; }
+        public int DefenseLosses { get; set; }
+        
+        // Win/Loss tracking by team color
+        public int RedTeamWins { get; set; }
+        public int RedTeamLosses { get; set; }
+        public int BlueTeamWins { get; set; }
+        public int BlueTeamLosses { get; set; }
+        
+        public DateTime CreatedAt { get; set; }
+    }
+}

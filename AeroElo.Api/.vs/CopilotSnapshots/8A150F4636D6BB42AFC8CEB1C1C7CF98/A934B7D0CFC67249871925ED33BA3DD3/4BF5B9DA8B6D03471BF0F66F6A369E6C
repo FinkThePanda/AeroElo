@@ -1,0 +1,7 @@
+﻿namespace AeroElo.Api.Services
+{
+    public class PlayerService
+    {
+        // Service implementation will go here
+    }
+}

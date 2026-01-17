@@ -1,0 +1,33 @@
+﻿using Microsoft.AspNetCore.Mvc;
+
+namespace AeroElo.Api.Controllers
+{
+    [ApiController]
+    [Route("[controller]")]
+    public class MatchController : ControllerBase
+    {
+        // GET Match history (paginated)
+        [HttpGet(Name = "GetMatchHistory")]
+        public IActionResult GetMatchHistory()
+        {
+            // Implementation goes here
+            return Ok();
+        }
+
+        // GET Match details
+        [HttpGet(Name = "GetMatchDetailsById")]
+        public IActionResult GetMatchDetailsById()
+        {
+            // Implementation goes here
+            return Ok();
+        }
+
+        // POST Create new match
+        [HttpPost(Name = "CreateMatch")] // 1v1 or 2v2
+        public IActionResult CreateMatch()
+        {
+            // Implementation goes here
+            return Ok();
+        }
+    }
+}

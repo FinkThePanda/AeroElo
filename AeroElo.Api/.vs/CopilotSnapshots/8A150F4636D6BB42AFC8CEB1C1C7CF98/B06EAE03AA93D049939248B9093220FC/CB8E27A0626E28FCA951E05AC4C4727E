@@ -1,0 +1,9 @@
+﻿namespace AeroElo.Api.Services
+{
+    public interface IEloService
+    {
+        public (int newA, int newB) CalculateNewRatings(double ratingA, double ratingB);
+        public Task Process1v1Match();
+        public Task Process2v2Match();
+    }
+}

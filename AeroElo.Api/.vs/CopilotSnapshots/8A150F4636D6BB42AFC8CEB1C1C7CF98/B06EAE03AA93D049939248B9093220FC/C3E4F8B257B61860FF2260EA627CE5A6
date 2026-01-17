@@ -1,0 +1,11 @@
+﻿using AeroElo.Api.Models;
+
+namespace AeroElo.Api.Services
+{
+    public interface IEloService
+    {
+        (int newA, int newB) CalculateNewRatings(double ratingA, double ratingB, bool wonA);
+        Task Process1v1Match(Guid matchId);
+        Task Process2v2Match(Guid matchId);
+    }
+}
